@@ -13,6 +13,9 @@ def get_domain_config_path(domain):
     if ret == 1: 
         print(f"Domain: {domain} not found, exiting.")
         sys.exit(1)
+    elif ret == 2:
+        print(f"No TLD provided, exiting.")
+        sys.exit(1)
     return vhost.split('(')[-1].split(':')[0]
 
 #testing, domain = "teamrocket.org"
