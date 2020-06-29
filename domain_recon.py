@@ -2,16 +2,22 @@
 #The purpose of this module is to parse an dump of apache's vhost
 #for the top level domain "TLD" of the domain of interest.
 
+import sys
+
 from utils import do_cmd as bash_cmd
 #to-do implement error handeling for bad input, i.e no domain or domain that doesn't exist.
 #The function returns two strings, ret contains the error code, 0 or 1 and the second string
 #contains the information that the bash command returns
 def get_domain_config_path(domain):
     ret, vhost = bash_cmd(f'httpd -S | grep {domain}')
+    if ret == 1: 
+        print(f"Domain: {domain} not found, exiting.")
+        sys.exit(1)
     return vhost.split('(')[-1].split(':')[0]
 
 #testing, domain = "teamrocket.org"
 domain = input("Initializing Domain Recon.. Please enter the TLD to recon: ")
+
 
 #extracts the absolute path of the vhost config for the specified TLD
 extracted_path = get_domain_config_path(domain)
