@@ -22,7 +22,8 @@ def get_domain_config_path(domain):
     return domain_config_path
 
 
-# testing, domain = 'teamrocket.org'
+# testing
+# domain = 'teamfire.org'
 domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
 
 # extracts the absolute path of the vhost config for the specified TLD
@@ -36,6 +37,7 @@ clean_domain_info = list()
 
 # iterating over domain_info, splitting into substrings on \n
 for item in domain_info.split('\n'):
+    # print(f'DEBUG: {item}')
     # itermediate variable to strip item of whitespace
     clean_item = item.strip()
     # if the string length of clean_item > 0, append the substring to the 
@@ -49,29 +51,30 @@ for item in domain_info.split('\n'):
 # -custom/access logs
 # -error logs
 
-# TODO: create an dictionary that contains key value pairs of httpd directives to config locations absolute
 
+# Discovery markers
 DOCUMENT_ROOT_MARKER = 'DocumentRoot'
 CUSTOM_LOG_MARKER = 'CustomLog'
 ERROR_LOG_MARKER = 'ErrorLog'
 
+http = {}
 
 # info is a string split on an whitespace character into two strings: keyword and /path/to/some/log
 for line in clean_domain_info:
     if DOCUMENT_ROOT_MARKER in line:
         info = line.split(' ')
-        document_root_path = info[1]
+        http['document_root'] = info[1]
     elif CUSTOM_LOG_MARKER in line:
         info = line.split(' ')
-        custom_log_path = info[1]
+        http['custom_log'] = info[1]
     elif ERROR_LOG_MARKER in line:
         info = line.split(' ')
-        error_log_path = info[1]
+        http['error_log'] = info[1]
 
-# This section returns the basic information above the domain to the user
+
 print(f'\n')
 print(f'The following information was reconned:')
-print(f'Vhost Configuration: {extracted_path}') 
-print(f'{DOCUMENT_ROOT_MARKER}: {document_root_path}')
-print(f'{CUSTOM_LOG_MARKER}: {custom_log_path}')
-print(f'{ERROR_LOG_MARKER}: {error_log_path}')
+print(f'Vhost Configuration: {extracted_path}')
+
+for vhost, directive in http.items():
+    print(f"{vhost} : {directive}") 
