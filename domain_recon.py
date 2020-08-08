@@ -7,6 +7,8 @@ import sys
 from utils import do_cmd as bash_cmd
 
 
+# TODO: Remove comments once the final refactor for the vhost parser is complete
+
 def get_domain_config_path(domain):
     ret, vhost = bash_cmd(f'httpd -S | grep "{domain}"')
     if ret == 1: 
