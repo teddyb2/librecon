@@ -3,6 +3,7 @@
 # for the top level domain 'TLD' of the domain of interest.
 
 import sys
+import re
 
 from utils import do_cmd as bash_cmd
 
@@ -11,163 +12,134 @@ from utils import do_cmd as bash_cmd
 
 def get_domain_config_path(domain):
     ret, vhost = bash_cmd(f'httpd -S | grep "{domain}"')
-    if ret == 1: 
+    if ret == 1:
         print(f'Domain: {domain} not found, exiting.')
         sys.exit(1)
     elif len(domain) == 0:
         print(f'No TLD provided, exiting.')
         sys.exit(1)
-    # print(f'DEBUG_VHOST_RAW: {vhost}')    
+    # print(f'DEBUG_VHOST_RAW: {vhost}')
+
     #domain_config_path = vhost.split('(')[-1].split(':')[0]
-    domain_config_path = vhost.split('\n') 
-    # print(f'DEBUG_PATH_AFTER: {domain_config_path}')
-    return domain_config_path
+    final = vhost.split('\n')
+    paths = list(set([line.split('(')[-1].split(':')[0] for line in final if '(' in line]))
+
+    #domain_config_path = vhost.split('(')[-1].split(':')[0]
+    #domain_config_path = vhost.split('\n')
+    #print(f'DEBUG_PATH_AFTER: {domain_config_path}')
+    return paths
+
+# ========== Raw Vhost Parsing And Extraction ============================
+def vhosts_extraction(extracted_paths):
+
+    # Regex to find the opening <VirtualHost *:443/80> and closing </VirtualHost> tags and grab
+    # everything inbetween
+    # vhost_reg = re.compile(r"(<VirtualHost.+?>.*?</VirtualHost>)",re.DOTALL)
+    vhost_reg = re.compile(r"(<VirtualHost.+?>.*?</VirtualHost>)",re.DOTALL)
+
+    # List containing string contents of each config file.
+    apache_config_files = []
+    for path in extracted_paths:
+        with open(path, 'r') as config_file:
+           config_contents = config_file.read()
+           apache_config_files.append(config_contents)
+
+    extracted_vhosts = []
+    for apache_config_file in apache_config_files:
+
+        config_lines_without_comments = []
+        for line in apache_config_file.split('\n'):
+            line = line.strip()
+            if not line.startswith('#'):
+                config_lines_without_comments.append(line)
+
+        config_without_comments = '\n'.join(config_lines_without_comments)
+        vhost_matches = vhost_reg.findall(config_without_comments)
+
+        for vhost in vhost_matches:
+            extracted_vhosts.append(vhost)
+
+
+    print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
+
+    return extracted_vhosts
+
+# ========================================
+
+
+class ApacheVirtualHost(object):
+    def __init__(self, raw_config=None):
+        self.raw_config  = raw_config
+        self.clean_config_list = []
+        # self.config_without_comments = []
+
+        # When the class is instantiated, the _parse_config() method will
+        # automatically be called to clean up raw_config.
+        self._parse_config()
+
+
+    def _parse_config(self):
+        # TODO: put lines that start with # into a separate variable like "self.comments" or something
+        #       or at least exclude them.
+        # print('')
+        # print('RAW_DEBUG!')
+        # print(self.raw_config)
+        clean_config = [l.strip() for l in self.raw_config.split('\n')]
+        non_blank_config = [l for l in clean_config if l != '' and not l.startswith('#')]
+
+        # config_without_comments = [l for l in non_blank_config if not l.startswith('#')]
+        #print(f'CONFIG_WITHOUT_COMMENTS_VAR_TYPE: {type(config_without_comments)}')
+
+        # print([l for l in config_without_comments])
+
+
+        # original return
+        self.clean_config_list = non_blank_config
+
+
+        #self.clean_config_list = config_without_comments
+        # print('')
+        # print(f'DEBUG_CLEAN_CONF: {self.clean_config_list}')
+
+
+    def document_root(self):
+        # WARNING: This method will return an invalid document root if the config file you
+        #           are working with has a line like "# DocumentRoot " in it...
+        # TODO: remove commented lines in the _parse_config method or something like that.
+        #
+        # Find the document root location by looking for lins with "documentRoot" in them
+
+        # DEBUG
+        # print(f"CLEAN_DEBUG: {self.clean_config_list}")
+
+        return [l for l in self.clean_config_list if 'DocumentRoot' in l][-1].split(' ')[-1]
+
+    def error_log(self):
+        return [l for l in self.clean_config_list if 'ErrorLog' in l][-1].split(' ')[-1]
+
+    def server_name(self):
+        return [l for l in self.clean_config_list if 'ServerName' in l][-1].split(' ')[-1]
 
 
 # testing
-# domain = 'teamfire.org'
+# domain = 'teamfire_ssl.org.conf'
 domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
 
-
 # extracts the absolute path of the vhost config for the specified TLD
-# need to work with extracted paths and break it into a dict of port 80/443 vhost paths
-extracted_path = get_domain_config_path(domain)
+extracted_paths = get_domain_config_path(domain)
 
+# extracting raw vhost information
+raw_vhosts = vhosts_extraction(extracted_paths)
 
-# {domain - top level dict} : {http}
-#                           : {https}
+vhost_objects = []
+for raw_vhost in raw_vhosts:
+    vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost))
 
+for vhost in vhost_objects:
+     print('Document Root: ', vhost.document_root())
+     print('Error Log: ', vhost.error_log())
+     print('Server Name:', vhost.server_name())
 
-domain = { 'http' : {'vhost_config': ''}, 'https' : {'vhost_config': ''}}
+# print(f"DEBUG_EXTRACTED_PATHS: {extracted_paths}")
 
-#  vhost path extraction for 80/443, itemizing into respective dictionary
-for line in range(len(extracted_path)):
-    # print(f'DEBUG_LINE = {line}')
-    if 'port 443' in extracted_path[line]:
-        domain['https']['vhost_config'] = extracted_path[line].split('(')[-1].split(':')[0]
-        print(f'Vhost 443: {extracted_path[line]}')
-    elif 'port 80' in extracted_path[line]:
-        domain['http']['vhost_config'] = extracted_path[line].split('(')[-1].split(':')[0]
-        print(f'Vhost 80: {extracted_path[line]}')
-
-# END VHOST PATH EXTRACTION
-
-# HTTPS/HTTP dict debug:
-# https_debug = domain['https']['vhost_config']
-# http_debug = domain['http']['vhost_config']
-
-# print(f'HTTPS_VHOST_PATH: {https_debug}')
-# print(f'HTTP_VHOST_PATH: {http_debug}')
-
-
-# Iterate over the sub-dicts http and https. If the vhost_config key is
-# not blank, then I should iterate over the entire sub-dict and populate the various
-# keys "access_log, custom_log, server_alias, etc"
-
-http_clean_domain_info = list()
-https_clean_domain_info = list()
-
-# Discovery markers
-DOCUMENT_ROOT_MARKER = 'DocumentRoot'
-CUSTOM_LOG_MARKER = 'CustomLog'
-ERROR_LOG_MARKER = 'ErrorLog'
-
-# Vhost Information Extraction
-for key, directive in domain.items():
-    
-    if 'https' in key and directive['vhost_config'] != '':
-        # print(f'DEBUG_HTTPS_DIRECTIVE: {directive}')
-        # print(f'DEBUG HTTPS_KEY: {key}')
-        extracted_path = domain['https']['vhost_config']
-        # print(f'HTTPS EXTRACT_PATH: {extracted_path}')
-        ret, https_domain_info = bash_cmd(f'grep -i \'document\|log\' {extracted_path}')
-
-        for item in https_domain_info.split('\n'):
-            # print(f'DEBUG: {item}')
-            # itermediate variable to strip item of whitespace
-            clean_item = item.strip()
-            # if the string length of clean_item > 0, and the string does not
-            # start with "#"," append the substring to the 
-            # clean_domain_info variable 
-            if len(clean_item) > 0 and not clean_item.startswith("#"):
-                https_clean_domain_info.append(clean_item)
-        # iterating over domain_info, splitting into substrings on \n
-        for line in https_clean_domain_info:
-            if DOCUMENT_ROOT_MARKER in line:
-                info = line.split(' ')
-                domain['https']['document_root'] = info[1]
-            elif CUSTOM_LOG_MARKER in line:
-                info = line.split(' ')
-                domain['https']['custom_log'] = info[1]
-            elif ERROR_LOG_MARKER in line:
-                info = line.split(' ')
-                domain['https']['error_log'] = info[1]
-
-    elif 'http' in key and directive['vhost_config'] != '':
-        # print(f'DEBUG_HTTP_DIRECTIVE: {directive}')
-        # print(f'DEBUG_HTTP_KEY: {key}')
-        extracted_path = domain['http']['vhost_config']
-        # print(f'HTTP EXTRACT_PATH: {extracted_path}')
-        ret, http_domain_info = bash_cmd(f'grep -i \'document\|log\' {extracted_path}')
-        # iterating over domain_info, splitting into substrings on \n
-        for item in http_domain_info.split('\n'):
-            # print(f'DEBUG: {item}')
-            # itermediate variable to strip item of whitespace
-            clean_item = item.strip()
-            # if the string length of clean_item > 0, and the string does not
-            # start with "#"," append the substring to the 
-            # clean_domain_info variable 
-            if len(clean_item) > 0 and not clean_item.startswith("#"):
-                http_clean_domain_info.append(clean_item)
-        for line in http_clean_domain_info:
-            if DOCUMENT_ROOT_MARKER in line:
-                info = line.split(' ')
-                domain['http']['document_root'] = info[1]
-            elif CUSTOM_LOG_MARKER in line:
-                info = line.split(' ')
-                domain['http']['custom_log'] = info[1]
-            elif ERROR_LOG_MARKER in line:
-                info = line.split(' ')
-                domain['http']['error_log'] = info[1]
-
-
-# created an empty list to store strings that contains cleaned up output
-# from the apache vhost dump
-
-# item is an list that contains the following:
-# -document_root
-# -custom/access logs
-# -error logs
-
-# http = {}
-
-print(f'\n')
-print(f'The following information was reconned:')
-print(f'Vhost Configuration: {extracted_path}')
-
-
-# testing new print statements
-
-# printer_iteration = 0
-printed_443 = False
-printed_80 = False
-
-for key, directive in domain.items():
-    #printer_iteration += 1
-    if domain['https']['vhost_config'] != '' and printed_443 != True:
-        # print(f'HTTPS Vhost Info: ')
-        # print(f'DEBUG_HTTPS_DOMAIN: {DEBUG_HTTPS_DOMAIN}')
-        printed_443 = True
-        print('PRINT 443:')
-        for vhost, directive in domain['https'].items():
-            print(f"{vhost} : {directive}")
-    
-    elif domain['http']['vhost_config'] != '' and printed_80 != True:
-        print('PRINT 80:')
-        # print(f'HTTP Vhost Info: ')
-        printed_80 = True
-        # print(f'DEBUG_HTTP_DOMAIN: {domain}')
-        for vhost, directive in domain['http'].items():
-            print(f"{vhost} : {directive}")
-
-# print(f'Printer Iterations: {printer_iteration}')
+# print(f'Server Name: {}'
