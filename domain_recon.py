@@ -9,7 +9,7 @@ from utils import do_cmd as bash_cmd
 
 
 def get_domain_config_path(domain):
-    ret, vhost = bash_cmd(f'httpd -S | grep "{domain}"')
+    ret, vhost = bash_cmd(f'httpd -S | grep -i "{domain}"')
     if ret == 1:
         print(f'Domain: {domain} not found, exiting.')
         sys.exit(1)
