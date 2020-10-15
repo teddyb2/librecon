@@ -84,22 +84,38 @@ class ApacheVirtualHost(object):
 
         # DEBUG: prints the processed vhost configuration
         # print(f'DEBUG_CLEAN_CONF: {self.clean_config_list}')
-        
-
-    def document_root(self):
-        return [l for l in self.clean_config_list if 'DocumentRoot' in l][-1].split(' ')[-1]
-
-
-    def error_log(self):
-        return [l for l in self.clean_config_list if 'ErrorLog' in l][-1].split(' ')[-1]
 
 
     def server_name(self):
-        return [l for l in self.clean_config_list if 'ServerName' in l][-1].split(' ')[-1]
+        return self._find_directive('ServerName')
+
+
+    def server_alias(self):
+        return self._find_directive('ServerAlias')
+
+
+    def document_root(self):
+        return self._find_directive('DocumentRoot')
+
+
+    def error_log(self):
+        return self._find_directive('ErrorLog')
+
+
+    def custom_log(self):
+        return self._find_directive('CustomLog')    
+
+    # checks if the directive exists in the parsed vhost. Sets directive as 'not set'
+    def _find_directive(self, directive):
+        try:
+            # return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-1]
+            return [l for l in self.clean_config_list if directive in l][-1].split(' ')[1]
+        except IndexError:
+            return 'Not Set'
 
 
 # testing
-# domain = 'teamfire.org.conf'
+# domain = 'teamrocket.com.conf'
 domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
 
 # extracts the absolute path of the vhost config for the specified TLD
@@ -113,9 +129,10 @@ for raw_vhost in raw_vhosts:
     vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost))
 
 for vhost in vhost_objects:
+     print('Server Name:', vhost.server_name())
+     print('Server Alias:', vhost.server_alias())
      print('Document Root: ', vhost.document_root())
      print('Error Log: ', vhost.error_log())
-     print('Server Name:', vhost.server_name())
-
+     print('Custom Log:', vhost.custom_log())
 # DEBUG: prints the absolute path(s) for reconned vhost(s)
 # print(f"DEBUG_EXTRACTED_PATHS: {extracted_paths}")
