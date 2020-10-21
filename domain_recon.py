@@ -32,7 +32,7 @@ def vhosts_extraction(extracted_paths):
     # everything inbetween
     vhost_reg = re.compile(r"(<VirtualHost.+?>.*?</VirtualHost>)",re.DOTALL)
 
-    # List containing string contents of each config file.
+    # List comprised of strings containing contents of each config file.
     apache_config_files = []
     for path in extracted_paths:
         with open(path, 'r') as config_file:
@@ -51,17 +51,17 @@ def vhosts_extraction(extracted_paths):
         config_without_comments = '\n'.join(config_lines_without_comments)
         vhost_matches = vhost_reg.findall(config_without_comments)
 
+    # checks that the extracted vhost block matches the specified domain by searching for the domain name in the vhost block
         for vhost in vhost_matches:
-            extracted_vhosts.append(vhost)
+            if domain.lower() in vhost.lower():
+                extracted_vhosts.append(vhost)
 
     # DEBUG: prints the regex matched contents of an extracted vhost(s) w/o disabled directives
-    # print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
+    #print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
     
     return extracted_vhosts
 
-# ========================================
-
-
+# ========== Class for crawling extracted_vhosts for desired directives ===
 class ApacheVirtualHost(object):
     def __init__(self, raw_config=None):
         self.raw_config  = raw_config
@@ -89,33 +89,42 @@ class ApacheVirtualHost(object):
     def server_name(self):
         return self._find_directive('ServerName')
 
-
     def server_alias(self):
         return self._find_directive('ServerAlias')
-
 
     def document_root(self):
         return self._find_directive('DocumentRoot')
 
-
     def error_log(self):
         return self._find_directive('ErrorLog')
-
 
     def custom_log(self):
         return self._find_directive('CustomLog')    
 
-    # checks if the directive exists in the parsed vhost. Sets directive as 'not set'
+    def ssl_cert(self):
+        return self._find_directive('SSLCertificateFile')
+
+    def ssl_key(self):
+        return self._find_directive('SSLCertificateKeyFile')
+
+    def ssl_chain(self):
+        return self._find_directive('SSLCertificateChainFile')
+      
+    # checks if the directive exists in the parsed vhost. Sets directive as 'not set' if missing
     def _find_directive(self, directive):
-        try:
-            # return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-1]
-            return [l for l in self.clean_config_list if directive in l][-1].split(' ')[1]
-        except IndexError:
-            return 'Not Set'
+
+        # adjusts the list comprehension to offset by -2 to grab the abs path to the log instead of log facility 
+        if directive == 'CustomLog':
+            return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-2]
+        else:
+            try:
+                return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-1]
+            except IndexError:
+                return 'Not Set'
 
 
 # testing
-# domain = 'teamrocket.com.conf'
+# domain = 'teamfire.org'
 domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
 
 # extracts the absolute path of the vhost config for the specified TLD
@@ -128,11 +137,27 @@ vhost_objects = []
 for raw_vhost in raw_vhosts:
     vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost))
 
-for vhost in vhost_objects:
-     print('Server Name:', vhost.server_name())
-     print('Server Alias:', vhost.server_alias())
-     print('Document Root: ', vhost.document_root())
-     print('Error Log: ', vhost.error_log())
-     print('Custom Log:', vhost.custom_log())
 # DEBUG: prints the absolute path(s) for reconned vhost(s)
 # print(f"DEBUG_EXTRACTED_PATHS: {extracted_paths}")
+
+# DEBUG: number of vhost blocks parsed
+# print(f'DEBUG_VHOST_OBJ_LENGTH: {len(vhost_objects)}')
+
+loop_count = 0
+for vhost in vhost_objects:
+     
+     # Prevents over iteration of the number of vhost conf files vs number of parsed vhost blocks
+     if loop_count >= 0 and loop_count < len(extracted_paths):
+         print(f'Vhost Configuration: {extracted_paths[loop_count]}')
+     else:
+         print(f'Vhost Configuration: {extracted_paths[loop_count - 1]}')
+     
+     print('Server Name:', vhost.server_name())
+     print('Server Alias:', vhost.server_alias())
+     print('Document Root:', vhost.document_root())
+     print('Error Log:', vhost.error_log())
+     print('Custom Log:', vhost.custom_log())
+     print('SSL Cert:', vhost.ssl_cert())
+     print('SSL Key:', vhost.ssl_key())
+     print('SSL Chain:', vhost.ssl_chain())
+     loop_count+=1
