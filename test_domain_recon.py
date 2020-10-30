@@ -39,5 +39,43 @@ class test_domain_input(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
 
+class test_vhost_cralwers(unittest.TestCase):
+    # Instaniate an instance of the vhost parser and the resulting processed vhost
+    def setUp(self):
+        self.domain = 'teamrocket.org'
+        self.extracted_paths = domain_recon.get_domain_config_path(self.domain)
+        self.raw_vhosts = domain_recon.vhosts_extraction(self.extracted_paths, self.domain)
+        
+        
+        self.vhost_objects = []
+        for raw_vhost in self.raw_vhosts:
+            self.vhost_objects = domain_recon.ApacheVirtualHost(raw_vhost)
+
+
+    def test_servername(self):
+        self.assertEqual(self.vhost_objects.server_name(), 'teamrocket.org')
+
+    def test_alias(self):
+        self.assertEqual(self.vhost_objects.server_alias(), 'Not Set')
+
+    def test_document_root(self):
+        self.assertEqual(self.vhost_objects.document_root(), '/var/www/vhosts/teamrocket.org')
+
+    def test_error_log(self):
+        self.assertEqual(self.vhost_objects.error_log(), '/var/log/httpd/teamrocket_error.log')
+
+    def test_custom_log(self):
+        self.assertEqual(self.vhost_objects.custom_log(), '/var/log/httpd/teamrocket_access.log')
+
+    def test_ssl_cert(self):
+        self.assertEqual(self.vhost_objects.ssl_cert(), 'Not Set')
+
+    def test_ssl_key(self):
+        self.assertEqual(self.vhost_objects.ssl_key(), 'Not Set')
+
+    def test_ssl_chain(self):
+        self.assertEqual(self.vhost_objects.ssl_chain(), 'Not Set')
+
+
 if __name__ == '__main__':
     unittest.main()
