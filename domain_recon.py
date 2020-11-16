@@ -154,7 +154,7 @@ class ApacheVirtualHost(object):
             try:
                 return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-1]
             except IndexError:
-                return 'Not Set'
+                return None
 
 
 if __name__ == '__main__':

@@ -57,7 +57,7 @@ class test_vhost_cralwers(unittest.TestCase):
         self.assertEqual(self.vhost_objects.server_name(), 'teamrocket.org')
 
     def test_alias(self):
-        self.assertEqual(self.vhost_objects.server_alias(), 'Not Set')
+        self.assertEqual(self.vhost_objects.server_alias(), None)
 
     def test_document_root(self):
         self.assertEqual(self.vhost_objects.document_root(), '/var/www/vhosts/teamrocket.org')
@@ -69,13 +69,13 @@ class test_vhost_cralwers(unittest.TestCase):
         self.assertEqual(self.vhost_objects.custom_log(), '/var/log/httpd/teamrocket_access.log')
 
     def test_ssl_cert(self):
-        self.assertEqual(self.vhost_objects.ssl_cert(), 'Not Set')
+        self.assertEqual(self.vhost_objects.ssl_cert(), None)
 
     def test_ssl_key(self):
-        self.assertEqual(self.vhost_objects.ssl_key(), 'Not Set')
+        self.assertEqual(self.vhost_objects.ssl_key(), None)
 
     def test_ssl_chain(self):
-        self.assertEqual(self.vhost_objects.ssl_chain(), 'Not Set')
+        self.assertEqual(self.vhost_objects.ssl_chain(), None)
 
 
 if __name__ == '__main__':
