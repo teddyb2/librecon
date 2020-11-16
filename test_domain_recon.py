@@ -44,13 +44,14 @@ class test_vhost_cralwers(unittest.TestCase):
     def setUp(self):
         self.domain = 'teamrocket.org'
         self.extracted_paths = domain_recon.get_domain_config_path(self.domain)
-        self.raw_vhosts = domain_recon.vhosts_extraction(self.extracted_paths, self.domain)
-        
+        #self.raw_vhosts = domain_recon.vhosts_extraction(self.extracted_paths, self.domain)
         
         self.vhost_objects = []
-        for raw_vhost in self.raw_vhosts:
-            self.vhost_objects = domain_recon.ApacheVirtualHost(raw_vhost)
-
+        for self.path in self.extracted_paths:
+            self.raw_vhosts = domain_recon.vhosts_extraction(self.path, self.domain)
+            for self.raw_vhost in self.raw_vhosts:
+                self.vhost_objects = domain_recon.ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
+        
 
     def test_servername(self):
         self.assertEqual(self.vhost_objects.server_name(), 'teamrocket.org')
