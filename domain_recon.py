@@ -13,22 +13,18 @@ def main():
     
     # extracts the absolute path of the vhost config for the specified TLD
     extracted_paths = get_domain_config_path(domain)
-    # extracting raw vhost information
-    raw_vhosts = vhosts_extraction(extracted_paths, domain)
-
-    vhost_objects = []
-    for raw_vhost in raw_vhosts:
-        vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost))
-
-    loop_count = 0
-    for vhost in vhost_objects:
     
-    # Prevents over iteration of the number of vhost conf files vs number of parsed vhost blocks
-        if loop_count >= 0 and loop_count < len(extracted_paths):
-            print(f'Vhost Configuration: {extracted_paths[loop_count]}')
-        else:
-            print(f'Vhost Configuration: {extracted_paths[loop_count - 1]}')
-        
+    # extracting raw vhost information
+    vhost_objects = []
+    for path in extracted_paths:
+        raw_vhosts = vhosts_extraction(path, domain)
+        for raw_vhost in raw_vhosts:
+            vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost, config_path=path))
+
+    for vhost in vhost_objects:
+            
+        print(f'**************************************')
+        print('Configure Path:', vhost.config_path)
         print('Server Name:', vhost.server_name())
         print('Server Alias:', vhost.server_alias())
         print('Document Root:', vhost.document_root())
@@ -37,8 +33,8 @@ def main():
         print('SSL Cert:', vhost.ssl_cert())
         print('SSL Key:', vhost.ssl_key())
         print('SSL Chain:', vhost.ssl_chain())
-        loop_count+=1    
-
+        print('\n')
+       
 
 def get_domain_config_path(domain):
     ret, vhost = bash_cmd(f'httpd -S | grep -i "{domain}"')
@@ -66,10 +62,10 @@ def vhosts_extraction(extracted_paths, domain):
 
     # List comprised of strings containing contents of each config file.
     apache_config_files = []
-    for path in extracted_paths:
-        with open(path, 'r') as config_file:
-            config_contents = config_file.read()
-            apache_config_files.append(config_contents)
+
+    with open(extracted_paths, 'r') as config_file:
+        config_contents = config_file.read()
+        apache_config_files.append(config_contents)
 
     extracted_vhosts = []
     for apache_config_file in apache_config_files:
@@ -96,9 +92,10 @@ def vhosts_extraction(extracted_paths, domain):
 
 # ========== Class for crawling extracted_vhosts for desired directives ===
 class ApacheVirtualHost(object):
-    def __init__(self, raw_config=None):
+    def __init__(self, raw_config=None, config_path=None):
         self.raw_config  = raw_config
         self.clean_config_list = []
+        self.config_path = config_path
 
         # When the class is instantiated, the _parse_config() method will
         # automatically be called to clean up raw_config.
@@ -118,6 +115,9 @@ class ApacheVirtualHost(object):
         # DEBUG: prints the processed vhost configuration
         # print(f'DEBUG_CLEAN_CONF: {self.clean_config_list}')
 
+
+    def source_config_path(self):
+        return self.config_path
 
     def server_name(self):
         return self._find_directive('ServerName')
