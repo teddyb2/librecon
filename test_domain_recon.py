@@ -6,17 +6,17 @@ import unittest
 import sys
 import domain_recon
 
-class test_domain_input(unittest.TestCase):
+class TestDomainInput(unittest.TestCase):
 
 
-    def test_CAPITAL_domain(self):
+    def test_capital_domain(self):
         domain = 'CLUSTERA.COM'
         actual = domain_recon.get_domain_config_path(domain)
         expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
         self.assertEqual(expected, actual)
         
 
-    def test_mixedCASE_domain(self):
+    def test_mixed_case_domain(self):
         domain = 'HIDEOUT.teamrocket.com'
         actual = domain_recon.get_domain_config_path(domain)
         expected = ["/etc/httpd/conf.d/hideout.teamrocket.com.conf"]
@@ -39,7 +39,7 @@ class test_domain_input(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
 
-class test_vhost_cralwers(unittest.TestCase):
+class TestVhostCralwers(unittest.TestCase):
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'teamrocket.org'
