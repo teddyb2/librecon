@@ -4,21 +4,25 @@
 
 import unittest
 import sys
-import domain_recon
+
+from domain_recon import get_domain_config_path
+from domain_recon import vhosts_extraction
+from domain_recon import ApacheVirtualHost
+
 
 class TestDomainInput(unittest.TestCase):
 
 
     def test_capital_domain(self):
         domain = 'CLUSTERA.COM'
-        actual = domain_recon.get_domain_config_path(domain)
+        actual = get_domain_config_path(domain)
         expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
         self.assertEqual(expected, actual)
         
 
     def test_mixed_case_domain(self):
         domain = 'HIDEOUT.teamrocket.com'
-        actual = domain_recon.get_domain_config_path(domain)
+        actual = get_domain_config_path(domain)
         expected = ["/etc/httpd/conf.d/hideout.teamrocket.com.conf"]
         self.assertEqual(expected, actual)
 
@@ -27,7 +31,7 @@ class TestDomainInput(unittest.TestCase):
     def test_incorrect_tld_domain(self):
         domain = "teamsocket.net"
         with self.assertRaises(SystemExit) as cm:
-            domain_recon.get_domain_config_path(domain)
+            get_domain_config_path(domain)
         self.assertEqual(cm.exception.code, 1)
     
 
@@ -35,7 +39,7 @@ class TestDomainInput(unittest.TestCase):
     def test_no_input(self):
         domain = ""
         with self.assertRaises(SystemExit) as cm:
-            domain_recon.get_domain_config_path(domain)
+            get_domain_config_path(domain)
         self.assertEqual(cm.exception.code, 1)
 
 
@@ -43,14 +47,14 @@ class TestVhostCralwers(unittest.TestCase):
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'teamrocket.org'
-        self.extracted_paths = domain_recon.get_domain_config_path(self.domain)
+        self.extracted_paths = get_domain_config_path(self.domain)
         #self.raw_vhosts = domain_recon.vhosts_extraction(self.extracted_paths, self.domain)
         
         self.vhost_objects = []
         for self.path in self.extracted_paths:
-            self.raw_vhosts = domain_recon.vhosts_extraction(self.path, self.domain)
+            self.raw_vhosts = vhosts_extraction(self.path, self.domain)
             for self.raw_vhost in self.raw_vhosts:
-                self.vhost_objects = domain_recon.ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
+                self.vhost_objects = ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
         
 
     def test_servername(self):
