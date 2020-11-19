@@ -50,36 +50,36 @@ class TestVhostCralwers(unittest.TestCase):
         self.extracted_paths = get_domain_config_path(self.domain)
         #self.raw_vhosts = domain_recon.vhosts_extraction(self.extracted_paths, self.domain)
         
-        self.vhost_objects = []
+        self.vhost_object = []
         for self.path in self.extracted_paths:
             self.raw_vhosts = vhosts_extraction(self.path, self.domain)
             for self.raw_vhost in self.raw_vhosts:
-                self.vhost_objects = ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
+                self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
         
 
     def test_servername(self):
-        self.assertEqual(self.vhost_objects.server_name(), 'teamrocket.org')
+        self.assertEqual(self.vhost_object.server_name(), 'teamrocket.org')
 
     def test_alias(self):
-        self.assertEqual(self.vhost_objects.server_alias(), None)
+        self.assertEqual(self.vhost_object.server_alias(), None)
 
     def test_document_root(self):
-        self.assertEqual(self.vhost_objects.document_root(), '/var/www/vhosts/teamrocket.org')
+        self.assertEqual(self.vhost_object.document_root(), '/var/www/vhosts/teamrocket.org')
 
     def test_error_log(self):
-        self.assertEqual(self.vhost_objects.error_log(), '/var/log/httpd/teamrocket_error.log')
+        self.assertEqual(self.vhost_object.error_log(), '/var/log/httpd/teamrocket_error.log')
 
     def test_custom_log(self):
-        self.assertEqual(self.vhost_objects.custom_log(), '/var/log/httpd/teamrocket_access.log')
+        self.assertEqual(self.vhost_object.custom_log(), '/var/log/httpd/teamrocket_access.log')
 
     def test_ssl_cert(self):
-        self.assertEqual(self.vhost_objects.ssl_cert(), None)
+        self.assertEqual(self.vhost_object.ssl_cert(), None)
 
     def test_ssl_key(self):
-        self.assertEqual(self.vhost_objects.ssl_key(), None)
+        self.assertEqual(self.vhost_object.ssl_key(), None)
 
     def test_ssl_chain(self):
-        self.assertEqual(self.vhost_objects.ssl_chain(), None)
+        self.assertEqual(self.vhost_object.ssl_chain(), None)
 
 
 if __name__ == '__main__':
