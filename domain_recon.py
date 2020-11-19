@@ -45,7 +45,16 @@ def get_domain_config_path(domain):
         print(f'No TLD provided, exiting.')
         sys.exit(1)
     
+    # Split the vhost string blob on new line character into seperate strings
     final = vhost.split('\n')
+
+    # paths is a list of strings containing the absolute paths of vhost configuration files.
+    # Unfiltered output from httpd -S
+    # port 443 namevhost teamfire.org (/etc/httpd/conf.d/teamfire.org.conf:36)
+    
+    # The list is iterated, each path split on the first '(' and split on the ':'
+    # This strips away the unnecessary info, resulting in a usable absolute path to the vhost configuration:
+    # /etc/httpd/conf.d/teamfire.org.conf
     paths = list(set([line.split('(')[-1].split(':')[0] for line in final if '(' in line]))
 
     # DEBUG: prints the absolute path(s) of the vhosts for the requested tld
