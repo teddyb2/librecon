@@ -1,0 +1,4 @@
+         default server clusterA.com (/etc/httpd/conf.d/cluster_buster.conf:12)
+         port 80 namevhost clusterA.com (/etc/httpd/conf.d/cluster_buster.conf:12)
+         port 80 namevhost clusterB.com (/etc/httpd/conf.d/cluster_buster.conf:44)
+         port 80 namevhost clusterC.com (/etc/httpd/conf.d/cluster_buster.conf:76)
