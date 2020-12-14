@@ -2,6 +2,7 @@
 # test core mechanics of the vhost parsers for accuracy when present with a wide variety 
 # of vhosts
 
+from unittest import mock
 import unittest
 import sys
 
@@ -9,15 +10,82 @@ from domain_recon import get_domain_config_path
 from domain_recon import vhosts_extraction
 from domain_recon import ApacheVirtualHost
 
+from utils import do_cmd as bash_cmd
+
+
+
+class TestBashCMD(unittest.TestCase):
+    
+    # testing that do_cmd can be successfully called
+    @mock.patch('utils.do_cmd')
+    def test_call_do_cmd(self, mock_call_cmd):
+        
+        # calling the do_cmd function from utils
+        mock_call_cmd.do_cmd()
+
+        mock_call_cmd.do_cmd.assert_called()
+
+    # testing that do_cmd can be called successfully with arguments
+    @mock.patch('utils.do_cmd')
+    def test_mock_cmd(self, mock_do_cmd):
+
+        # mock call to do_cmd
+        mock_do_cmd.do_cmd('echo hello')
+        
+        # testing that do_cmd was called with the argument 'echo hello'
+        mock_do_cmd.do_cmd.assert_called_with('echo hello')
+
+    def test_that_bash_cmd_actually_can_run_a_bash_cmd(self):
+        ret, _ = bash_cmd('true')
+        assert ret == 0
+        ret = 0
+        return ret
+
+# class that specifically tests if get_domain_config_path is successful
+
+class TestMockGetDomain(unittest.TestCase):
+
+    # def __init__(self, domain=None):
+    #     self.domain = domain
+    
+    @mock.patch('domain_recon.get_domain_config_path')
+    def mock_get_domain(self, mock_get_domain, domain):
+
+
+
+        if TestBashCMD.test_that_bash_cmd_actually_can_run_a_bash_cmd(domain) == 0:
+            
+            print(f'DEBUG: MockGetDomain Called')
+            mock_get_domain.get_domain_config_path.return_value.text = "/etc/httpd/conf.d/cluster_buster.conf"
+            
+            #return mock_domain
+            # return mock_get_domain("/etc/httpd/conf.d/cluster_buster.conf")
+
+
+
+
 # Tests domain_recon input argument handling for valid and invalid input
 class TestDomainInput(unittest.TestCase):
 
+    @mock.patch('domain_recon.get_domain_config_path')
+    def mock_get_domain(self, mock_get_domain, domain):
+        if TestBashCMD.test_that_bash_cmd_actually_can_run_a_bash_cmd(domain) == 0:
+            mock_get_domain.mock_get_domain(domain).return_value.text = "/etc/httpd/conf.d/cluster_buster.conf"
+            print(f'DEBUG MOCK_GET CALLED')
 
     def test_capital_domain(self):
         domain = 'CLUSTERA.COM'
-        actual = get_domain_config_path(domain)
+        #actual = mock_get_domain.mock_get_domain(domain)
+        actual = mock_get_domain(domain)
         expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
         self.assertEqual(expected, actual)
+
+
+    # def test_capital_domain(self):
+    #     domain = 'CLUSTERA.COM'
+    #     actual = get_domain_config_path(domain)
+    #     expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
+    #     self.assertEqual(expected, actual)
         
 
     def test_mixed_case_domain(self):
