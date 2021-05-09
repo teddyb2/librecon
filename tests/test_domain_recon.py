@@ -2,126 +2,75 @@
 # test core mechanics of the vhost parsers for accuracy when present with a wide variety 
 # of vhosts
 
+from unittest.mock import patch
 from unittest import mock
 import unittest
 import sys
 
-from domain_recon import get_domain_config_path
 from domain_recon import vhosts_extraction
 from domain_recon import ApacheVirtualHost
-
 from utils import do_cmd as bash_cmd
+from domain_recon import get_apache_config_paths
 
 
+# NOTE - This class might not accurately represent the goal of parsing a raw httpd -S dump
+class mock_get_domain_config(unittest.TestCase):
 
-class TestBashCMD(unittest.TestCase):
+    domain_map = {'CLUSTERA.com' : 'tests/assets/cluster_buster.conf',
+                              'clusterb.com' : 'tests/assets/cluster_buster.conf',
+                              'clusterc.com' : 'tests/assets/cluster_buster.conf',
+                              'teamfire.org' : 'tests/assets/teamfire.org.conf',
+                              'teamrocket.org' : 'tests/assets/teamrocket.org.conf',
+                              'hideout.teamrocket.org' : 'tests/assets/hideout.teamrocket.org.conf',
+                              '' : ''}
+
+    # reads the the vhost configuration file from the domain_map. Returns a tuple[return_code, 
+    # vhost_contents, extracted_path "from domain_map" ]
+    def bash_cmd_mock(self, domain):
+        '''Pretends to do what bash_cmd would do when called with "httpd -S" by reading a file
+        '''
+        try:
+            with open(self.domain_map[domain], 'r') as f:
+                return_code = 0
+                command_output = str(f.read())
+                extracted_path = self.domain_map[domain]
+                return return_code, command_output, extracted_path 
+        except GeneratorExit:
+            print(f"FAILURE, 404 ON THE DOMAIN")
+            return_code = 1
+            return return_code
+     
     
-    # testing that do_cmd can be successfully called
-    @mock.patch('utils.do_cmd')
-    def test_call_do_cmd(self, mock_call_cmd):
-        
-        # calling the do_cmd function from utils
-        mock_call_cmd.do_cmd()
-
-        mock_call_cmd.do_cmd.assert_called()
-
-    # testing that do_cmd can be called successfully with arguments
-    @mock.patch('utils.do_cmd')
-    def test_mock_cmd(self, mock_do_cmd):
-
-        # mock call to do_cmd
-        mock_do_cmd.do_cmd('echo hello')
-        
-        # testing that do_cmd was called with the argument 'echo hello'
-        mock_do_cmd.do_cmd.assert_called_with('echo hello')
-
-    def test_that_bash_cmd_actually_can_run_a_bash_cmd(self):
-        ret, _ = bash_cmd('true')
-        assert ret == 0
-        ret = 0
-        return ret
-
-# class that specifically tests if get_domain_config_path is successful
-
-class TestMockGetDomain(unittest.TestCase):
-
-    # def __init__(self, domain=None):
-    #     self.domain = domain
-    
-    @mock.patch('domain_recon.get_domain_config_path')
-    def mock_get_domain(self, mock_get_domain, domain):
-
-
-
-        if TestBashCMD.test_that_bash_cmd_actually_can_run_a_bash_cmd(domain) == 0:
-            
-            print(f'DEBUG: MockGetDomain Called')
-            mock_get_domain.get_domain_config_path.return_value.text = "/etc/httpd/conf.d/cluster_buster.conf"
-            
-            #return mock_domain
-            # return mock_get_domain("/etc/httpd/conf.d/cluster_buster.conf")
-
-
-
-
 # Tests domain_recon input argument handling for valid and invalid input
-class TestDomainInput(unittest.TestCase):
-
-    @mock.patch('domain_recon.get_domain_config_path')
-    def mock_get_domain(self, mock_get_domain, domain):
-        if TestBashCMD.test_that_bash_cmd_actually_can_run_a_bash_cmd(domain) == 0:
-            mock_get_domain.mock_get_domain(domain).return_value.text = "/etc/httpd/conf.d/cluster_buster.conf"
-            print(f'DEBUG MOCK_GET CALLED')
-
-    def test_capital_domain(self):
-        domain = 'CLUSTERA.COM'
-        #actual = mock_get_domain.mock_get_domain(domain)
-        actual = mock_get_domain(domain)
-        expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
-        self.assertEqual(expected, actual)
-
-
-    # def test_capital_domain(self):
-    #     domain = 'CLUSTERA.COM'
-    #     actual = get_domain_config_path(domain)
-    #     expected = ["/etc/httpd/conf.d/cluster_buster.conf"]
-    #     self.assertEqual(expected, actual)
-        
-
-    def test_mixed_case_domain(self):
-        domain = 'HIDEOUT.teamrocket.org'
-        actual = get_domain_config_path(domain)
-        expected = ["/etc/httpd/conf.d/hideout.teamrocket.org.conf"]
-        self.assertEqual(expected, actual)
-
-
-    # TODO - suppress stdout messages    
-    def test_incorrect_tld_domain(self):
-        domain = "teamsocket.net"
-        with self.assertRaises(SystemExit) as cm:
-            get_domain_config_path(domain)
-        self.assertEqual(cm.exception.code, 1)
+class TestDomainInput(mock_get_domain_config):
     
+    def test_invalid_tld(self):
+        with self.assertRaises(KeyError):
+            mock_get_domain_config.bash_cmd_mock(self, domain = "duck.io")    
 
-    # TODO - suppress stdout messages
     def test_no_input(self):
-        domain = ""
-        with self.assertRaises(SystemExit) as cm:
-            get_domain_config_path(domain)
-        self.assertEqual(cm.exception.code, 1)
+        with self.assertRaises(FileNotFoundError):
+            mock_get_domain_config.bash_cmd_mock(self, domain = '') 
+
+    def test_valid_tld(self):
+        self.assertEqual(mock_get_domain_config.bash_cmd_mock(self, domain = 'teamfire.org')[2], 'tests/assets/teamfire.org.conf')
 
 
 # single 80 vhost test and vhost crawler test
-class TestVhostCralwers(unittest.TestCase):
+# the unittest,TestCase library is inheirentied from the mock_get_domain_config, which
+# is inherieted by the TestVhostCrawlers class.
+class TestVhostCralwers(mock_get_domain_config):
+    
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'teamrocket.org'
-        self.extracted_path = "/etc/httpd/conf.d/teamrocket.org.conf"
-
+        self.extracted_path = mock_get_domain_config.bash_cmd_mock(self, domain = self.domain)[2]
         self.raw_vhosts = vhosts_extraction(self.extracted_path, self.domain)
         self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_path)
         
-
+    def test_conf_path(self):
+        self.assertEqual(mock_get_domain_config.bash_cmd_mock(self, domain = 'teamfire.org')[2], 'tests/assets/teamfire.org.conf')    
+        
     def test_servername(self):
         self.assertEqual(self.vhost_object.server_name(), 'teamrocket.org')
 
@@ -148,14 +97,14 @@ class TestVhostCralwers(unittest.TestCase):
 
 
 # Clustered 80 vhost test - pulling the correct vhost block from a cluster vhost confs
-class TestClusteredVhosts(unittest.TestCase):
+class TestClusteredVhosts(mock_get_domain_config):
+    
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'clusterb.com'
-        self.extracted_paths = get_domain_config_path(self.domain)
-           
-        self.raw_vhosts = vhosts_extraction(str(self.extracted_paths[0]), self.domain)
-        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_paths)
+        self.extracted_path = mock_get_domain_config.bash_cmd_mock(self, domain = self.domain)[2]
+        self.raw_vhosts = vhosts_extraction(self.extracted_path, self.domain)
+        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_path)
 
 
     def test_servername(self):
@@ -184,21 +133,16 @@ class TestClusteredVhosts(unittest.TestCase):
 
 
 # Subdomain 80 vhost test - search for subdomain vhost and extract information from a subdomain
-class TestSubDomainVhost(unittest.TestCase):
+class TestSubDomainVhost(mock_get_domain_config):
+    
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'hideout.teamrocket.org'
-        self.extracted_paths = get_domain_config_path(self.domain)
-        
-        # Iterates through the vhosts confs parsed from the hideout.teamrocket.org conf
-        self.vhost_object = []
-        for self.path in self.extracted_paths:
-            self.raw_vhosts = vhosts_extraction(self.path, self.domain)
-            for self.raw_vhost in self.raw_vhosts:
-                tmp = ApacheVirtualHost(raw_config=self.raw_vhost, config_path=self.path)
-                self.vhost_object = tmp
+        self.extracted_path = mock_get_domain_config.bash_cmd_mock(self, domain = self.domain)[2]
+        self.raw_vhosts = vhosts_extraction(self.extracted_path, self.domain)
+        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_path)
 
-     
+    
     def test_servername(self):
         self.assertEqual(self.vhost_object.server_name(), 'hideout.teamrocket.org')
 
@@ -225,21 +169,22 @@ class TestSubDomainVhost(unittest.TestCase):
 
 
 # single 443 vhost test - teamfire.org
-class Test443_80Vhosts(unittest.TestCase):
+class Test443_80Vhosts(mock_get_domain_config):
+    
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'teamfire.org'
-        self.extracted_paths = '/etc/httpd/conf.d/teamfire.org.conf'
+        self.extracted_path = mock_get_domain_config.bash_cmd_mock(self, domain = self.domain)[2]
    
         # For a given configuration path, a vhost_object can contain one or two vhost configurations, 
         # which entirely depends if both 443/80 blocks are present. In this test, the second vhost (443)
         # is being pulled from the vhost_object. The first vhost is 80. 
-        self.raw_vhosts = vhosts_extraction(self.extracted_paths, self.domain)
-        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[1], config_path=self.extracted_paths)
+        self.raw_vhosts = vhosts_extraction(self.extracted_path, self.domain)
+        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[1], config_path=self.extracted_path)
 
 
     def test_source_config_path(self):
-        self.assertEqual(self.vhost_object.source_config_path(), '/etc/httpd/conf.d/teamfire.org.conf')
+        self.assertEqual(self.vhost_object.source_config_path(), 'tests/assets/teamfire.org.conf')
 
     def test_servername(self):
         self.assertEqual(self.vhost_object.server_name(), 'teamfire.org')
@@ -267,21 +212,22 @@ class Test443_80Vhosts(unittest.TestCase):
 
 
 # single 80 vhost test - teamfire.org
-class Test_80Vhosts(unittest.TestCase):
+class Test_80Vhosts(mock_get_domain_config):
+    
     # Instaniate an instance of the vhost parser and the resulting processed vhost
     def setUp(self):
         self.domain = 'teamfire.org'
-        self.extracted_paths = '/etc/httpd/conf.d/teamfire.org.conf'
-   
+        self.extracted_path = mock_get_domain_config.bash_cmd_mock(self, domain = self.domain)[2]
+
         # For a given configuration path, a vhost_object can contain one or two vhost configurations, 
         # which entirely depends if both 443/80 blocks are present. In this test, the second vhost (443)
         # is being pulled from the vhost_object. The first vhost is 80. 
-        self.raw_vhosts = vhosts_extraction(self.extracted_paths, self.domain)
-        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_paths)
+        self.raw_vhosts = vhosts_extraction(self.extracted_path, self.domain)
+        self.vhost_object = ApacheVirtualHost(raw_config=self.raw_vhosts[0], config_path=self.extracted_path)
 
 
     def test_source_config_path(self):
-        self.assertEqual(self.vhost_object.source_config_path(), '/etc/httpd/conf.d/teamfire.org.conf')
+        self.assertEqual(self.vhost_object.source_config_path(), 'tests/assets/teamfire.org.conf')
 
     def test_servername(self):
         self.assertEqual(self.vhost_object.server_name(), 'teamfire.org')
