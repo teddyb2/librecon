@@ -1,0 +1,40 @@
+VirtualHost configuration:
+*:443                  is a NameVirtualHost
+         default server teamfire.org (/etc/httpd/conf.d/repeat_teamfire.org.conf:42)
+         port 443 namevhost teamfire.org (/etc/httpd/conf.d/repeat_teamfire.org.conf:42)
+                 alias 1000degrees.com
+         port 443 namevhost 104.130.127.148 (/etc/httpd/conf.d/ssl.conf:56)
+         port 443 namevhost teamfire.org (/etc/httpd/conf.d/teamfire.org.conf:42)
+                 alias 1000degrees.com
+         port 443 namevhost teamfire.org (/etc/httpd/conf.d/teamfire_443.org.conf:10)
+                 alias 1000degrees.com
+*:80                   is a NameVirtualHost
+         default server clusterA.com (/etc/httpd/conf.d/cluster_buster.conf:12)
+         port 80 namevhost clusterA.com (/etc/httpd/conf.d/cluster_buster.conf:12)
+         port 80 namevhost clusterB.com (/etc/httpd/conf.d/cluster_buster.conf:44)
+         port 80 namevhost clusterC.com (/etc/httpd/conf.d/cluster_buster.conf:76)
+         port 80 namevhost hideout.teamrocket.org (/etc/httpd/conf.d/hideout.teamrocket.org.conf:11)
+                 alias stealth.com
+         port 80 namevhost teamfire.org (/etc/httpd/conf.d/repeat_teamfire.org.conf:9)
+                 alias 1000degrees.com
+         port 80 namevhost teamfire.org (/etc/httpd/conf.d/teamfire.org.conf:9)
+                 alias 1000degrees.com
+         port 80 namevhost teamrocket.org (/etc/httpd/conf.d/teamrocket.org.conf:8)
+ServerRoot: "/etc/httpd"
+Main DocumentRoot: "/var/www/html"
+Main ErrorLog: "/etc/httpd/logs/error_log"
+Mutex authdigest-opaque: using_defaults
+Mutex proxy-balancer-shm: using_defaults
+Mutex rewrite-map: using_defaults
+Mutex authdigest-client: using_defaults
+Mutex ssl-stapling: using_defaults
+Mutex proxy: using_defaults
+Mutex authn-socache: using_defaults
+Mutex ssl-cache: using_defaults
+Mutex default: dir="/run/httpd/" mechanism=default 
+PidFile: "/run/httpd/httpd.pid"
+Define: _RH_HAS_HTTPPROTOCOLOPTIONS
+Define: DUMP_VHOSTS
+Define: DUMP_RUN_CFG
+User: name="apache" id=48
+Group: name="apache" id=48
