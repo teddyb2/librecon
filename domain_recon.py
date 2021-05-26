@@ -11,7 +11,7 @@ from utils import do_cmd as bash_cmd
 def main():
     domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
     if domain == '':
-        print(f'No TLD provided, exiting.')
+        print('No TLD provided, exiting.')
         sys.exit(1)
 
 
@@ -32,12 +32,12 @@ def main():
    # If the domain doesn't exists, then vhost objects will not have any objects.
    # The vhosts_Extraction method returns nothing if it can't find a domain.
     if len(vhost_objects) == 0:
-       print(f'TLD not found on server, exiting.')
+       print('TLD not found on server, exiting.')
        sys.exit(1)
   
     for vhost in vhost_objects:
             
-        print(f'**************************************')
+        print('**************************************')
         print('Configure Path:', vhost.config_path)
         print('Server Name:', vhost.server_name())
         print('Server Alias:', vhost.server_alias())
@@ -58,7 +58,7 @@ def main():
 
 def get_apache_active_vhosts():
     '''Dumps the active apache vhosts via httpd -S into a string''' 
-    ret, vhosts = bash_cmd(f'httpd -S')
+    ret, vhosts = bash_cmd('httpd -S')
     if ret == 1:
         print(f'Apache failed to dump vhosts, exiting.')
         sys.exit(1)
