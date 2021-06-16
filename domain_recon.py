@@ -4,16 +4,24 @@
 
 import sys
 import re
+import argparse
 
 from utils import do_cmd as bash_cmd
 
 
-def main():
-    domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
-    if domain == '':
-        print('No TLD provided, exiting.')
-        sys.exit(1)
+def cli():
+    description_string = ('Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.')
 
+    parser = argparse.ArgumentParser(description=description_string)
+    parser.add_argument('--domain', type=str, help='Enter the full domain name to recon.')
+    parser.add_argument('--debug', type=str, help='Enable verbose debug output.')
+    args = parser.parse_args()
+
+    # Calling main method with supplied arguments from user
+    main(domain=args.domain,debug=args.debug)
+
+def main(domain=None,debug=None):
+    domain = domain
 
     active_vhosts = get_apache_active_vhosts()
     
@@ -191,4 +199,4 @@ class ApacheVirtualHost(object):
 
 
 if __name__ == '__main__':
-     main()
+     cli()
