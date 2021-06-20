@@ -5,6 +5,8 @@
 import sys
 import re
 import argparse
+import logging
+
 
 from utils import do_cmd as bash_cmd
 
@@ -23,6 +25,19 @@ def cli():
 def main(domain=None,debug=None):
     domain = domain
 
+    print(f'Value of MAIN DEBUG: {debug}')
+    if debug == True:
+        logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+        ) # You can change the logging level to INFO, DEBUG CRITICAL, ERROR, ETC
+    else:
+        logging.basicConfig(
+        level=logging.disable(0),
+        format="%(asctime)s - %(levelname)s - %(message)s"
+        ) 
+
+    # dumps all active vhosts
     active_vhosts = get_apache_active_vhosts()
     
     # extracts the absolute path of the vhost config for the specified TLD
@@ -31,9 +46,12 @@ def main(domain=None,debug=None):
     # extracting raw vhost information
     vhost_objects = []
     for path in extracted_paths:
-        raw_vhosts = vhosts_extraction(path, domain)
+        raw_vhosts = vhosts_extraction(path, domain) # I think this is looping to many times. It seems that it should only be called once... Investigate.
         for raw_vhost in raw_vhosts:
             vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost, config_path=path))
+            #print(f'DEBUG EXTRACTED VHOST: {raw_vhosts[0]}')
+
+    #print(f'DEBUG EXTRACTED VHOST: {raw_vhosts[0]}')
 
    # Checks if the domain exists by checking the list of vhost objects for a vhost 
    # object with a matching server_name.
@@ -88,8 +106,10 @@ def get_apache_config_paths(active_vhosts):
     # /etc/httpd/conf.d/teamfire.org.conf
     paths = list(set([line.split('(')[-1].split(':')[0] for line in final if '(' in line]))
 
-    # DEBUG: prints the absolute path(s) of the vhosts for the requested tld
+    # DEBUG: prints the absolute path(s) of the active vhosts
     # print(f'DEBUG_PATH_AFTER: {paths}')
+    logging.debug(f'EXTRACTED_VHOST_PATHS: {paths}')
+
     return paths
 
 
@@ -127,7 +147,7 @@ def vhosts_extraction(extracted_paths, domain):
 
     # DEBUG: prints the regex matched contents of an extracted vhost(s) w/o disabled directives
     # print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
-    
+    logging.debug(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}') # debug output does not line wrap, making it hard to read. I need to format this
     return extracted_vhosts
 
 
@@ -147,6 +167,7 @@ class ApacheVirtualHost(object):
         
         # print('DEBUG: ApacheVirtualHost class ingested raw vhost:')
         # print(self.raw_config)
+        logging.debug(f'DEBUG_RAW_VHOST: \n{self.raw_config}\n')
         
         clean_config = [l.strip() for l in self.raw_config.split('\n')]
         non_blank_config = [l for l in clean_config if l != '' and not l.startswith('#')]
@@ -155,6 +176,7 @@ class ApacheVirtualHost(object):
 
         # DEBUG: prints the processed vhost configuration
         # print(f'DEBUG_CLEAN_CONF: {self.clean_config_list}')
+        logging.debug(f'DEBUG_CLEAN_CONF: {self.clean_config_list}\n')
 
 
     def source_config_path(self):
