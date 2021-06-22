@@ -10,8 +10,8 @@ from utils import do_cmd as bash_cmd
 
 
 def main():
-    description_string = ('Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.')
-    parser = argparse.ArgumentParser(description=description_string)
+    description = 'Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.'
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--domain', type=str, required=True, help='Fully qualified domain name to recon locally.')
     parser.add_argument('--debug', required=False, action='store_true', help='Enable verbose debug output.')
     
