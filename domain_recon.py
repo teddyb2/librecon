@@ -11,19 +11,16 @@ import logging
 from utils import do_cmd as bash_cmd
 
 
-def cli():
-    description_string = ('Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.')
-
-    parser = argparse.ArgumentParser(description=description_string)
-    parser.add_argument('--domain', type=str, help='Enter the full domain name to recon.')
-    parser.add_argument('--debug', type=str, help='Enable verbose debug output.')
+def main():
+    description = 'Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--domain', type=str, required=True, help='Fully qualified domain name to recon locally.')
+    parser.add_argument('--debug', required=False, action='store_true', help='Enable verbose debug output.')
+    
     args = parser.parse_args()
 
-    # Calling main method with supplied arguments from user
-    main(domain=args.domain,debug=args.debug)
-
-def main(domain=None,debug=None):
-    domain = domain
+    # Calling recon method with supplied arguments from user
+    recon(domain=args.domain,debug=args.debug)
 
     print(f'Value of MAIN DEBUG: {debug}')
     if debug == True:
@@ -38,6 +35,8 @@ def main(domain=None,debug=None):
         ) 
 
     # dumps all active vhosts
+    
+def recon(domain,debug):
     active_vhosts = get_apache_active_vhosts()
     
     # extracts the absolute path of the vhost config for the specified TLD
@@ -221,4 +220,4 @@ class ApacheVirtualHost(object):
 
 
 if __name__ == '__main__':
-     cli()
+     main()
