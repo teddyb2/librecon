@@ -19,8 +19,8 @@ def main():
     
     args = parser.parse_args()
 
-    # Calling recon method with supplied arguments from user
-    recon(domain=args.domain,debug=args.debug)
+    domain=args.domain
+    debug=args.debug
 
     print(f'Value of MAIN DEBUG: {debug}')
     if debug == True:
@@ -34,7 +34,9 @@ def main():
         format="%(asctime)s - %(levelname)s - %(message)s"
         ) 
 
-    # dumps all active vhosts
+    # Calling recon method with supplied arguments from user
+    recon(domain,debug)
+
     
 def recon(domain,debug):
     active_vhosts = get_apache_active_vhosts()
@@ -48,9 +50,7 @@ def recon(domain,debug):
         raw_vhosts = vhosts_extraction(path, domain) # I think this is looping to many times. It seems that it should only be called once... Investigate.
         for raw_vhost in raw_vhosts:
             vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost, config_path=path))
-            #print(f'DEBUG EXTRACTED VHOST: {raw_vhosts[0]}')
 
-    #print(f'DEBUG EXTRACTED VHOST: {raw_vhosts[0]}')
 
    # Checks if the domain exists by checking the list of vhost objects for a vhost 
    # object with a matching server_name.
@@ -106,7 +106,6 @@ def get_apache_config_paths(active_vhosts):
     paths = list(set([line.split('(')[-1].split(':')[0] for line in final if '(' in line]))
 
     # DEBUG: prints the absolute path(s) of the active vhosts
-    # print(f'DEBUG_PATH_AFTER: {paths}')
     logging.debug(f'EXTRACTED_VHOST_PATHS: {paths}')
 
     return paths
@@ -145,7 +144,6 @@ def vhosts_extraction(extracted_paths, domain):
                 extracted_vhosts.append(vhost)
 
     # DEBUG: prints the regex matched contents of an extracted vhost(s) w/o disabled directives
-    # print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
     logging.debug(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}') # debug output does not line wrap, making it hard to read. I need to format this
     return extracted_vhosts
 
@@ -164,8 +162,7 @@ class ApacheVirtualHost(object):
 
     def _parse_config(self):
         
-        # print('DEBUG: ApacheVirtualHost class ingested raw vhost:')
-        # print(self.raw_config)
+        # DEBUG: Unmodified ApacheVirtualHost object
         logging.debug(f'DEBUG_RAW_VHOST: \n{self.raw_config}\n')
         
         clean_config = [l.strip() for l in self.raw_config.split('\n')]
@@ -174,7 +171,6 @@ class ApacheVirtualHost(object):
         self.clean_config_list = non_blank_config
 
         # DEBUG: prints the processed vhost configuration
-        # print(f'DEBUG_CLEAN_CONF: {self.clean_config_list}')
         logging.debug(f'DEBUG_CLEAN_CONF: {self.clean_config_list}\n')
 
 
