@@ -16,14 +16,13 @@ def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--domain', type=str, required=True, help='Fully qualified domain name to recon locally.')
     parser.add_argument('--debug', required=False, action='store_true', help='Enable verbose debug output.')
-    
     args = parser.parse_args()
 
     domain=args.domain
     debug=args.debug
 
-    print(f'Value of MAIN DEBUG: {debug}')
     if debug == True:
+        print('DEBUG Mode Enabled!')
         logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s"
@@ -32,36 +31,39 @@ def main():
         logging.basicConfig(
         level=logging.disable(0),
         format="%(asctime)s - %(levelname)s - %(message)s"
-        ) 
+        )
 
     # Calling recon method with supplied arguments from user
     recon(domain,debug)
 
-    
+
 def recon(domain,debug):
     active_vhosts = get_apache_active_vhosts()
-    
+
     # extracts the absolute path of the vhost config for the specified TLD
     extracted_paths = get_apache_config_paths(active_vhosts)
-    
+
     # extracting raw vhost information
     vhost_objects = []
-    for path in extracted_paths:
-        raw_vhosts = vhosts_extraction(path, domain) # I think this is looping to many times. It seems that it should only be called once... Investigate.
-        for raw_vhost in raw_vhosts:
-            vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost, config_path=path))
+
+    # {domain_name : {nested dict}}
+    processed_vhosts = vhosts_extraction(extracted_paths, domain)
+
+    # experiment
+    for conf_path in processed_vhosts.keys():
+        vhost_objects.append(ApacheVirtualHost(raw_config=processed_vhosts, config_path=conf_path))
 
 
-   # Checks if the domain exists by checking the list of vhost objects for a vhost 
+   # Checks if the domain exists by checking the list of vhost objects for a vhost
    # object with a matching server_name.
    # If the domain doesn't exists, then vhost objects will not have any objects.
    # The vhosts_Extraction method returns nothing if it can't find a domain.
     if len(vhost_objects) == 0:
        print('TLD not found on server, exiting.')
        sys.exit(1)
-  
+
     for vhost in vhost_objects:
-            
+
         print('**************************************')
         print('Configure Path:', vhost.config_path)
         print('Server Name:', vhost.server_name())
@@ -73,16 +75,16 @@ def recon(domain,debug):
         print('SSL Key:', vhost.ssl_key())
         print('SSL Chain:', vhost.ssl_chain())
         print('\n')
-       
+
 
 # TODO implement get_nginx_vhosts()
 # def get_nginx_active_vhosts():
 #   command or commands to dump nginx
-# return nginx_vhosts 
+# return nginx_vhosts
 
 
 def get_apache_active_vhosts():
-    '''Dumps the active apache vhosts via httpd -S into a string''' 
+    '''Dumps the active apache vhosts via httpd -S into a string'''
     ret, vhosts = bash_cmd('httpd -S')
     if ret == 1:
         print(f'Apache failed to dump vhosts, exiting.')
@@ -99,7 +101,7 @@ def get_apache_config_paths(active_vhosts):
     # paths is a list of strings containing the absolute paths of vhost configuration files.
     # Unfiltered output from httpd -S
     # port 443 namevhost teamfire.org (/etc/httpd/conf.d/teamfire.org.conf:36)
-    
+
     # The list is iterated, each path split on the first '(' and split on the ':'
     # This strips away the unnecessary info, resulting in a usable absolute path to the vhost configuration:
     # /etc/httpd/conf.d/teamfire.org.conf
@@ -119,17 +121,20 @@ def vhosts_extraction(extracted_paths, domain):
     vhost_reg = re.compile(r"(<VirtualHost.+?>.*?</VirtualHost>)",re.DOTALL)
 
     # List comprised of strings containing contents of each config file.
-    apache_config_files = []
+    apache_config_files = {}
 
-    with open(extracted_paths, 'r') as config_file:
-        config_contents = config_file.read()
-        apache_config_files.append(config_contents)
+    # Populates a list of raw apache config files read from disk
+    for path in extracted_paths:
+        with open(path, 'r') as config_file:
+            config_contents = config_file.read()
+            apache_config_files[path] = config_contents # seems to work for storing {'config_path: 'vhost_content'}
 
-    extracted_vhosts = []
-    for apache_config_file in apache_config_files:
+    extracted_vhosts = {}
+
+    for path in apache_config_files:
 
         config_lines_without_comments = []
-        for line in apache_config_file.split('\n'):
+        for line in apache_config_files[path].split('\n'):
             line = line.strip()
             if not line.startswith('#'):
                 config_lines_without_comments.append(line)
@@ -138,40 +143,39 @@ def vhosts_extraction(extracted_paths, domain):
         vhost_matches = vhost_reg.findall(config_without_comments)
 
     # checks that the extracted vhost block matches the specified domain by searching for the domain name in the vhost block
-    # compares the search tld in lowercase against the paresed domain's in lowercase. 
+    # compares the search tld in lowercase against the paresed domain's in lowercase.
         for vhost in vhost_matches:
             if domain.lower() in vhost.lower():
-                extracted_vhosts.append(vhost)
+                extracted_vhosts.update({path : vhost}) # <--This overwrites a vhosts. If a TLD has two vhosts in the same vhost
+                                                        # configuration file, one of them will be over written!
+                                                        # Check if "SSLEngine On" is set. The presense of this directive definitively defines an https vhost
 
-    # DEBUG: prints the regex matched contents of an extracted vhost(s) w/o disabled directives
-    logging.debug(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}') # debug output does not line wrap, making it hard to read. I need to format this
     return extracted_vhosts
 
 
 # ========== Class for crawling extracted_vhosts for desired directives ===
 class ApacheVirtualHost(object):
-    def __init__(self, raw_config=None, config_path=None):
-        self.raw_config  = raw_config
+    def __init__(self, raw_config, config_path):
         self.clean_config_list = []
         self.config_path = config_path
+        self.raw_config  = raw_config[config_path]
 
+        logging.debug(f'VHOST PATH: {config_path}')
         # When the class is instantiated, the _parse_config() method will
-        # automatically be called to clean up raw_config.
+        # automatically be called to clean up a raw_config.
         self._parse_config()
 
 
     def _parse_config(self):
-        
         # DEBUG: Unmodified ApacheVirtualHost object
-        logging.debug(f'DEBUG_RAW_VHOST: \n{self.raw_config}\n')
-        
-        clean_config = [l.strip() for l in self.raw_config.split('\n')]
-        non_blank_config = [l for l in clean_config if l != '' and not l.startswith('#')]
+        logging.debug(f'RAW VHOST: \n{self.raw_config}\n')
 
+        clean_config = [l.strip() for l in (self.raw_config).split('\n')]
+        non_blank_config = [l for l in clean_config if l != '' and not l.startswith('#')]
         self.clean_config_list = non_blank_config
 
         # DEBUG: prints the processed vhost configuration
-        logging.debug(f'DEBUG_CLEAN_CONF: {self.clean_config_list}\n')
+        logging.debug(f'PROCESSED VHOST CONFIGURATION: {self.clean_config_list}\n')
 
 
     def source_config_path(self):
@@ -190,7 +194,7 @@ class ApacheVirtualHost(object):
         return self._find_directive('ErrorLog')
 
     def custom_log(self):
-        return self._find_directive('CustomLog')    
+        return self._find_directive('CustomLog')
 
     def ssl_cert(self):
         return self._find_directive('SSLCertificateFile')
@@ -200,12 +204,11 @@ class ApacheVirtualHost(object):
 
     def ssl_chain(self):
         return self._find_directive('SSLCertificateChainFile')
-    
 
     # checks if the directive exists in the parsed vhost. Sets directive as 'not set' if missing
     def _find_directive(self, directive):
 
-        # adjusts the list comprehension to offset by -2 to grab the abs path to the log instead of log facility 
+        # adjusts the list comprehension to offset by -2 to grab the abs path to the log instead of log facility
         if directive == 'CustomLog':
             return [l for l in self.clean_config_list if directive in l][-1].split(' ')[-2]
         else:
