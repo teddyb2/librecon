@@ -4,15 +4,28 @@
 
 import sys
 import re
+import argparse
 
 from utils import do_cmd as bash_cmd
 
 
 def main():
-    domain = input('Initializing Domain Recon.. Please enter the TLD to recon: ')
+    description = 'Pull relevent Apache vhost directives for investigation, including logs and more for a given domain hosted locally.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--domain', type=str, required=True, help='Fully qualified domain name to recon locally.')
+    parser.add_argument('--debug', required=False, action='store_true', help='Enable verbose debug output.')
+    
+    args = parser.parse_args()
+
+    # Calling recon method with supplied arguments from user
+    recon(domain=args.domain,debug=args.debug)
+
+    
+def recon(domain,debug):
+    active_vhosts = get_apache_active_vhosts()
     
     # extracts the absolute path of the vhost config for the specified TLD
-    extracted_paths = get_domain_config_path(domain)
+    extracted_paths = get_apache_config_paths(active_vhosts)
     
     # extracting raw vhost information
     vhost_objects = []
@@ -21,9 +34,17 @@ def main():
         for raw_vhost in raw_vhosts:
             vhost_objects.append(ApacheVirtualHost(raw_config=raw_vhost, config_path=path))
 
+   # Checks if the domain exists by checking the list of vhost objects for a vhost 
+   # object with a matching server_name.
+   # If the domain doesn't exists, then vhost objects will not have any objects.
+   # The vhosts_Extraction method returns nothing if it can't find a domain.
+    if len(vhost_objects) == 0:
+       print('TLD not found on server, exiting.')
+       sys.exit(1)
+  
     for vhost in vhost_objects:
             
-        print(f'**************************************')
+        print('**************************************')
         print('Configure Path:', vhost.config_path)
         print('Server Name:', vhost.server_name())
         print('Server Alias:', vhost.server_alias())
@@ -36,17 +57,26 @@ def main():
         print('\n')
        
 
-def get_domain_config_path(domain):
-    ret, vhost = bash_cmd(f'httpd -S | grep -i "{domain}"')
+# TODO implement get_nginx_vhosts()
+# def get_nginx_active_vhosts():
+#   command or commands to dump nginx
+# return nginx_vhosts 
+
+
+def get_apache_active_vhosts():
+    '''Dumps the active apache vhosts via httpd -S into a string''' 
+    ret, vhosts = bash_cmd('httpd -S')
     if ret == 1:
-        print(f'Domain: {domain} not found, exiting.')
+        print(f'Apache failed to dump vhosts, exiting.')
         sys.exit(1)
-    elif len(domain) == 0:
-        print(f'No TLD provided, exiting.')
-        sys.exit(1)
-    
+    return vhosts
+
+
+def get_apache_config_paths(active_vhosts):
+    '''Takes the active vhost dump 'httpd -S' and extracts vhost configuration paths
+       as a list of absolute paths'''
     # Split the vhost string blob on new line character into seperate strings
-    final = vhost.split('\n')
+    final = active_vhosts.split('\n')
 
     # paths is a list of strings containing the absolute paths of vhost configuration files.
     # Unfiltered output from httpd -S
@@ -89,12 +119,13 @@ def vhosts_extraction(extracted_paths, domain):
         vhost_matches = vhost_reg.findall(config_without_comments)
 
     # checks that the extracted vhost block matches the specified domain by searching for the domain name in the vhost block
+    # compares the search tld in lowercase against the paresed domain's in lowercase. 
         for vhost in vhost_matches:
             if domain.lower() in vhost.lower():
                 extracted_vhosts.append(vhost)
 
     # DEBUG: prints the regex matched contents of an extracted vhost(s) w/o disabled directives
-    #print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
+    # print(f'DEBUG EXTRACTED VHOST: {extracted_vhosts}')
     
     return extracted_vhosts
 
