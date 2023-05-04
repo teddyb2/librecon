@@ -124,6 +124,9 @@ def vhosts_extraction(extracted_paths, domain):
     apache_config_files = {}
 
     # Populates a list of raw apache config files read from disk
+
+    print(f"DEBUG-EXTRACTED-PATHz: {extracted_paths}")
+    print(f"DEBUG PATH OBJECT TYPE {type(extracted_paths)}")
     for path in extracted_paths:
         with open(path, 'r') as config_file:
             config_contents = config_file.read()
@@ -155,9 +158,12 @@ def vhosts_extraction(extracted_paths, domain):
 
 # ========== Class for crawling extracted_vhosts for desired directives ===
 class ApacheVirtualHost(object):
-    def __init__(self, raw_config, config_path):
+    def __init__(self, raw_config, config_path=None):
         self.clean_config_list = []
         self.config_path = config_path
+        print("### DOMAIN RECON DEBUBG ###")
+        print(f"DEBUG DOMAIN-RECON CONFIG PATH: {config_path}")
+        print(f"DEBUG DOMAIN-RECON RAW_CONFIG: {raw_config}")
         self.raw_config  = raw_config[config_path]
 
         logging.debug(f'VHOST PATH: {config_path}')
